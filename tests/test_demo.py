@@ -20,7 +20,7 @@ class TestDemo:
 
         reponse = requests.post(f"{self.BASE_URL}/posts", requests_data)
 
-        assert reponse.status_code == 200
+        assert reponse.status_code == 201
         # print(reponse.json())
         
         assert reponse.json()["userId"] == '1'
