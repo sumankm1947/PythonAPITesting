@@ -1,8 +1,8 @@
 import requests
-import logging
+from config.config import API_ENDPOINT_JSONPLACEHOLDER
 
 class TestDemo:
-    BASE_URL = "https://jsonplaceholder.typicode.com"
+    BASE_URL = API_ENDPOINT_JSONPLACEHOLDER
     
     def test_get_post(self):
         response = requests.get(f"{self.BASE_URL}/posts/1")
