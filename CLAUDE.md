@@ -27,12 +27,12 @@ Reports are auto-generated to `./report/` on every run (configured in `pytest.in
 
 A **pytest-based REST API automation framework** built with Python + `requests`.
 
-**Request flow:** Tests → `requests` HTTP calls → external API → assertions on response status + JSON body.
+**Request flow:** Tests → `api_session` fixture (requests.Session) → external API → assertions on response status + JSON body.
 
 **Key files:**
-- `tests/test_demo.py` — class-based test suite (`TestDemo`); `BASE_URL` is hard-coded here
-- `conftest.py` — root conftest, currently empty; intended for shared fixtures (base URL, session setup)
-- `config/` — placeholder for environment/config management (not yet implemented)
+- `tests/test_demo.py` — class-based test suite (`TestDemo`); uses `base_url_jsonplaceholder` and `api_session` fixtures; module-level `logger` for structured logging
+- `conftest.py` — shared fixtures: `base_url_jsonplaceholder` (reads from `config.py`), `api_session` (session-scoped `requests.Session` with JSON headers), `logging.basicConfig`
+- `config/config.py` — loads `.env` via `python-dotenv`, exposes `API_ENDPOINT_JSONPLACEHOLDER`
 - `data/` — placeholder for external test data files (not yet implemented)
 - `report/` — auto-generated HTML + JSON reports from `pytest-html-reporter`
 

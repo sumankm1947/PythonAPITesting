@@ -1,8 +1,8 @@
 # API Framework TODO
 
 ## Phase 1 — Foundation
-- [ ] `config/config.py` — base URLs for all 3 APIs, reads from `.env` via `python-dotenv`
-- [ ] `conftest.py` — shared fixtures: `base_url`, reusable `requests.Session`, setup/teardown
+- [x] `config/config.py` — base URLs for all 3 APIs, reads from `.env` via `python-dotenv`
+- [x] `conftest.py` — shared fixtures: `base_url_jsonplaceholder`, reusable `api_session` (session-scoped), logging setup
 - [ ] `utils/api_client.py` — thin wrapper around `requests` (handles headers, base URL, logging)
 
 ## Phase 2 — Test Quality

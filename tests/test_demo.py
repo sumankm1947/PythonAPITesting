@@ -1,27 +1,26 @@
-import requests
-from config.config import API_ENDPOINT_JSONPLACEHOLDER
+import logging
 
-class TestDemo:
-    BASE_URL = API_ENDPOINT_JSONPLACEHOLDER
-    
-    def test_get_post(self):
-        response = requests.get(f"{self.BASE_URL}/posts/1")
+logger = logging.getLogger(__name__)
+
+class TestDemo:    
+
+    def test_get_post(self, base_url_jsonplaceholder, api_session):
+        response = api_session.get(f"{base_url_jsonplaceholder}/posts/1")
         assert response.status_code == 200
         assert response.json()["userId"] == 1
         assert response.json()["id"] == 1
-        # print(response.json())
+        logger.info(f"Response: {response.json()}")
     
-    def test_post_post(self):
+    def test_post_post(self, base_url_jsonplaceholder, api_session):
         requests_data = {
             "title": "foo",
             "description": "bar",
             "userId": 1
         }
 
-        reponse = requests.post(f"{self.BASE_URL}/posts", requests_data)
+        response = api_session.post(f"{base_url_jsonplaceholder}/posts", json=requests_data)
 
-        assert reponse.status_code == 201
-        # print(reponse.json())
-        
-        assert reponse.json()["userId"] == '1'
-        assert reponse.json()["id"] == 101
+        logger.info(f"Response: {response.json()}") 
+        assert response.status_code == 201
+        assert response.json()["userId"] == 1
+        assert response.json()["id"] == 101
