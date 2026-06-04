@@ -27,11 +27,13 @@ Reports are auto-generated to `./report/` on every run (configured in `pytest.in
 
 A **pytest-based REST API automation framework** built with Python + `requests`.
 
-**Request flow:** Tests → `api_session` fixture (requests.Session) → external API → assertions on response status + JSON body.
+**Request flow:** Tests → `api_client_jsonplaceholder` fixture (`APIClient`) → `requests.Session` → external API → assertions on response status + JSON body.
 
 **Key files:**
-- `tests/test_demo.py` — class-based test suite (`TestDemo`); uses `base_url_jsonplaceholder` and `api_session` fixtures; module-level `logger` for structured logging
-- `conftest.py` — shared fixtures: `base_url_jsonplaceholder` (reads from `config.py`), `api_session` (session-scoped `requests.Session` with JSON headers), `logging.basicConfig`
+- `utils/api_client.py` — `APIClient` class; thin wrapper around `requests.Session`; handles base URL concatenation, default headers, and per-method request/response logging
+- `tests/test_jsonplaceholder.py` — main test suite (`TestPlaceholder`); full CRUD coverage (GET, POST, PUT, PATCH, DELETE) using `api_client_jsonplaceholder` fixture
+- `tests/test_demo.py` — legacy test suite (`TestDemo`); uses `base_url_jsonplaceholder` and `api_session` fixtures directly
+- `conftest.py` — shared fixtures: `api_client_jsonplaceholder` (function-scoped `APIClient` with teardown), `base_url_jsonplaceholder`, `api_session` (session-scoped, kept for legacy tests), `logging.basicConfig`
 - `config/config.py` — loads `.env` via `python-dotenv`, exposes `API_ENDPOINT_JSONPLACEHOLDER`
 - `data/` — placeholder for external test data files (not yet implemented)
 - `report/` — auto-generated HTML + JSON reports from `pytest-html-reporter`

@@ -3,7 +3,7 @@
 ## Phase 1 — Foundation
 - [x] `config/config.py` — base URLs for all 3 APIs, reads from `.env` via `python-dotenv`
 - [x] `conftest.py` — shared fixtures: `base_url_jsonplaceholder`, reusable `api_session` (session-scoped), logging setup
-- [ ] `utils/api_client.py` — thin wrapper around `requests` (handles headers, base URL, logging)
+- [x] `utils/api_client.py` — thin wrapper around `requests` (handles headers, base URL, logging)
 
 ## Phase 2 — Test Quality
 - [ ] `data/` — JSON test data files
