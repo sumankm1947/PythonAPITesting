@@ -8,8 +8,8 @@
 ## Phase 2 — Test Quality
 - [ ] `data/` — JSON test data files
 - [ ] `@pytest.mark.parametrize` — data-driven tests using the data files
-- [ ] Schema validation — `jsonschema` to assert response structure
-- [ ] Pytest markers — `@pytest.mark.smoke`, `@pytest.mark.regression`
+- [x] Schema validation — `jsonschema` to assert response structure (`utils/data_loader.py` loads schemas from `data/schemas/`; applied to `test_get_post`)
+- [x] Pytest markers — `@pytest.mark.smoke`, `@pytest.mark.regression`
 
 ## Phase 3 — Auth + Multi-API
 - [ ] ReqRes API — login endpoint for token; add `auth` fixture in `conftest.py`
