@@ -4,10 +4,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 class APIClient:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, headers:dict=None):
+        if headers is None:
+            headers = {"Content-Type": "application/json; charset=UTF-8"}
         self.base_url = base_url
         self.session = requests.Session()
-        self.session.headers.update({"Content-Type": "application/json; charset=UTF-8"})
+        self.session.headers.update(headers)
     
     def get(self, endpoint: str, headers: dict = None) -> requests.Response:
         logger.info(f"GET {self.base_url}{endpoint}")

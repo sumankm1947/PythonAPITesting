@@ -38,20 +38,22 @@ A **pytest-based REST API automation framework** built with Python + `requests`.
 **Request flow:** Tests → `api_client_jsonplaceholder` fixture (`APIClient`) → `requests.Session` → external API → assertions on response status + JSON body.
 
 **Key files:**
-- `utils/api_client.py` — `APIClient` class; thin wrapper around `requests.Session`; handles base URL concatenation, default headers, and per-method request/response logging
+- `utils/api_client.py` — `APIClient` class; thin wrapper around `requests.Session`; handles base URL concatenation, per-method request/response logging, and an optional `headers` arg on construction (defaults to JSON `Content-Type`; used to inject the auth `Cookie` for Restful-Booker)
 - `utils/data_loader.py` — `load_schema(name)` helper; reads a JSON schema from `data/schemas/<name>.json` (path anchored to project root via `pathlib`, UTF-8)
-- `tests/test_jsonplaceholder.py` — main test suite (`TestPlaceholder`); full CRUD coverage (GET, POST, PUT, PATCH, DELETE) using `api_client_jsonplaceholder` fixture; `test_get_post` also validates the response body against a JSON schema via `jsonschema.validate`
+- `tests/test_jsonplaceholder.py` — JSONPlaceholder suite (`TestPlaceholder`); full CRUD coverage (GET, POST, PUT, PATCH, DELETE) using `api_client_jsonplaceholder` fixture; `test_get_post` also validates the response body against a JSON schema via `jsonschema.validate`
+- `tests/test_restfulbooker.py` — Restful-Booker suite (`TestRestfulBooker`); token-auth tests — create booking, and a negative `DELETE`-without-token test asserting `403`
 - `tests/test_demo.py` — legacy test suite (`TestDemo`); uses `base_url_jsonplaceholder` and `api_session` fixtures directly
-- `conftest.py` — shared fixtures: `api_client_jsonplaceholder` (function-scoped `APIClient` with teardown), `base_url_jsonplaceholder`, `api_session` (session-scoped, kept for legacy tests), `logging.basicConfig`
-- `config/config.py` — loads `.env` via `python-dotenv`, exposes `API_ENDPOINT_JSONPLACEHOLDER`
+- `conftest.py` — shared fixtures: `api_client_jsonplaceholder` (function-scoped `APIClient` with teardown); Restful-Booker auth chain — `restful_booker_token` (session-scoped login → token), `api_session_restfulbooker` (authenticated `APIClient` with `Cookie: token=...`), `created_booking` (setup fixture returning a fresh `bookingid`), `booking_payload` (loads `data/booking_payload.json`); plus `base_url_jsonplaceholder`, `api_session` (legacy), `logging.basicConfig`
+- `config/config.py` — loads `.env` via `python-dotenv`, exposes `API_ENDPOINT_JSONPLACEHOLDER` and `API_ENDPOINT_RESTFULBOOKER`
 - `data/schemas/` — JSON Schema files used for response-structure validation (e.g. `post_jsonplaceholder.json`)
+- `data/booking_payload.json` — shared Restful-Booker create-booking request body (sourced by both the create test and the `created_booking` fixture)
 - `report/` — auto-generated HTML + JSON reports from `pytest-html-reporter`
 
-**pytest.ini** applies `-vs -rf --strict-markers --html-report=./report --title='PYTEST REPORT'` to every run automatically, and registers the custom markers `smoke` and `regression`.
+**pytest.ini** applies `-vs -rf --strict-markers --html-report=./report --title='PYTEST REPORT'` to every run automatically, and registers the custom markers `smoke`, `regression`, and `auth`.
 
 **CI/CD:** `.github/workflows/pytest.yml` runs on push/PR to `main` — sets up Python 3.10, installs deps, runs pytest, and uploads `report/` as a GitHub Actions artifact.
 
-**Test target:** `https://jsonplaceholder.typicode.com` (public fake REST API).
+**Test targets:** `https://jsonplaceholder.typicode.com` (public fake REST API, no auth) and `https://restful-booker.herokuapp.com` (token-authenticated booking API).
 
 ## Learning Notes
 
@@ -127,3 +129,25 @@ Registration in `pytest.ini` does **not** tag tests or enable selection (those w
 **`--strict-markers`** (set in `pytest.ini`) upgrades unregistered markers from a warning to a hard **error** at collection time — so a mistyped tag fails the run immediately instead of silently mis-tagging. This is the "fail loud" principle applied to markers, and is recommended for any real suite.
 
 **Verify:** `pytest -m smoke` (runs only smoke), `pytest --markers` (lists registered markers with descriptions).
+
+### Token authentication & the `auth` fixture chain (Restful-Booker)
+
+**The flow.** Token auth is a two-step dance: (1) `POST /auth` with credentials → server returns a `token`; (2) send that token on every *protected* request. Restful-Booker expects it as a `Cookie: token=<token>` header (other APIs use `Authorization: Bearer <token>` — same idea, different header). Mutations (`PUT`/`DELETE`) require it; `POST /booking` (create) does not.
+
+**Why a fixture, and why session scope.** A fixture logs in **once** and hands tests a ready token, so every test doesn't re-authenticate. `restful_booker_token` is `scope="session"` because the token stays valid for the whole run — logging in once is faster and the token is read-only shared state (safe to share). Function scope would re-login per test, slower for no benefit here.
+
+**Two-layer design (separation of concerns):**
+- `restful_booker_token` — *gets credentials*: logs in, returns the raw token string.
+- `api_session_restfulbooker` — *gets an authenticated client*: depends on the token fixture, returns an `APIClient` with `Cookie: token=...` already baked into its session. Tests just call methods; the token attaches itself.
+
+This mirrors real frameworks (separate "obtain credentials" from "build authed client") and keeps the raw token reusable for negative tests.
+
+**The negative test is the point.** The single most valuable auth assertion is `DELETE /booking/{id}` with an **unauthenticated** client → assert **`403`**. It proves auth is actually *enforced*, not just that login returns a string. (ReqRes was rejected as a target precisely because its token isn't enforced on anything — you could never write this test.) Pair it with a positive test (same call *with* token → success) for the with/without contrast.
+
+**Setup fixtures vs. tests under test.** `created_booking` (creates a booking, returns its `bookingid`) and the create *test* both call `POST /booking` — that is **not** duplication to eliminate. The test's job is to *verify* creation (it asserts); the fixture's job is to *arrange* a precondition for delete/update (it doesn't assert). Different intent. What *is* worth de-duplicating is the request *data* — hence `data/booking_payload.json`, sourced by both. General rule: test code tolerates more duplication than production code (favour explicit, self-contained tests), but centralise shared *data*.
+
+**Sharing state across tests — use fixtures, not class attributes.** pytest instantiates a **fresh instance of the test class for every test method**, so `self.x = ...` set in one test is gone in the next (the read silently falls back to the class attribute). A `created_booking` fixture is the correct way to pass a created id into a later test — it also removes the hidden ordering dependency (each test can run in isolation).
+
+
+
+claude --resume b3cc4d2b-e94a-4ad8-91f3-117a9b1322cc
