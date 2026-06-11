@@ -1,0 +1,6 @@
+[
+  { "post_id": 1,    "expected_status": 200, "expected_user": 1 },
+  { "post_id": 2,    "expected_status": 200, "expected_user": 1 },
+  { "post_id": 11,   "expected_status": 200, "expected_user": 2 },
+  { "post_id": 9999, "expected_status": 404, "expected_user": null }
+]

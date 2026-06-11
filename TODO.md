@@ -7,7 +7,7 @@
 
 ## Phase 2 — Test Quality
 - [x] `data/` — JSON test data files (`data/schemas/`, `data/booking_payload.json`)
-- [ ] `@pytest.mark.parametrize` — data-driven tests using the data files
+- [x] `@pytest.mark.parametrize` — data-driven tests using the data files (`test_get_post_cases` runs cases from `data/post_cases.json` via `load_data`, incl. a `404` negative case; readable `ids=`)
 - [x] Schema validation — `jsonschema` to assert response structure (`utils/data_loader.py` loads schemas from `data/schemas/`; applied to `test_get_post`)
 - [x] Pytest markers — `@pytest.mark.smoke`, `@pytest.mark.regression`
 

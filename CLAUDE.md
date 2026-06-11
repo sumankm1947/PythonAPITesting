@@ -39,14 +39,15 @@ A **pytest-based REST API automation framework** built with Python + `requests`.
 
 **Key files:**
 - `utils/api_client.py` — `APIClient` class; thin wrapper around `requests.Session`; handles base URL concatenation, per-method request/response logging, and an optional `headers` arg on construction (defaults to JSON `Content-Type`; used to inject the auth `Cookie` for Restful-Booker)
-- `utils/data_loader.py` — `load_schema(name)` helper; reads a JSON schema from `data/schemas/<name>.json` (path anchored to project root via `pathlib`, UTF-8)
-- `tests/test_jsonplaceholder.py` — JSONPlaceholder suite (`TestPlaceholder`); full CRUD coverage (GET, POST, PUT, PATCH, DELETE) using `api_client_jsonplaceholder` fixture; `test_get_post` also validates the response body against a JSON schema via `jsonschema.validate`
+- `utils/data_loader.py` — `load_schema(name)` reads a JSON schema from `data/schemas/<name>.json`; `load_data(name)` reads a JSON test-data file from `data/<name>.json` (e.g. parametrize cases). Both anchor to project root via `pathlib`, UTF-8
+- `tests/test_jsonplaceholder.py` — JSONPlaceholder suite (`TestPlaceholder`); full CRUD coverage (GET, POST, PUT, PATCH, DELETE) using `api_client_jsonplaceholder` fixture; `test_get_post` validates the response body against a JSON schema via `jsonschema.validate`; `test_get_post_cases` is a data-driven `@pytest.mark.parametrize` test sourcing cases (incl. a `404` negative) from `data/post_cases.json` via `load_data`
 - `tests/test_restfulbooker.py` — Restful-Booker suite (`TestRestfulBooker`); token-auth tests — create booking, `PATCH` partial update (`test_patch_partial_update`), `DELETE` with token (`test_delete_booking`, asserts `201`), and a negative `DELETE`-without-token test asserting `403`. Together the create/patch/delete tests cover the full authenticated CRUD chain
 - `tests/test_demo.py` — legacy test suite (`TestDemo`); uses `base_url_jsonplaceholder` and `api_session` fixtures directly
 - `conftest.py` — shared fixtures: `api_client_jsonplaceholder` (function-scoped `APIClient` with teardown); Restful-Booker auth chain — `restful_booker_token` (session-scoped login → token), `api_session_restfulbooker` (authenticated `APIClient` with `Cookie: token=...`), `created_booking` (setup fixture returning a fresh `bookingid`), `booking_payload` (loads `data/booking_payload.json`); plus `base_url_jsonplaceholder`, `api_session` (legacy), `logging.basicConfig`
 - `config/config.py` — loads `.env` via `python-dotenv`, exposes `API_ENDPOINT_JSONPLACEHOLDER` and `API_ENDPOINT_RESTFULBOOKER`
 - `data/schemas/` — JSON Schema files used for response-structure validation (e.g. `post_jsonplaceholder.json`)
 - `data/booking_payload.json` — shared Restful-Booker create-booking request body (sourced by both the create test and the `created_booking` fixture)
+- `data/post_cases.json` — list of case dicts for the parametrized `test_get_post_cases` (loaded via `load_data`)
 - `report/` — auto-generated HTML + JSON reports from `pytest-html-reporter`
 
 **pytest.ini** applies `-vs -rf --strict-markers --html-report=./report --title='PYTEST REPORT'` to every run automatically, and registers the custom markers `smoke`, `regression`, and `auth`.
@@ -129,6 +130,26 @@ Registration in `pytest.ini` does **not** tag tests or enable selection (those w
 **`--strict-markers`** (set in `pytest.ini`) upgrades unregistered markers from a warning to a hard **error** at collection time — so a mistyped tag fails the run immediately instead of silently mis-tagging. This is the "fail loud" principle applied to markers, and is recommended for any real suite.
 
 **Verify:** `pytest -m smoke` (runs only smoke), `pytest --markers` (lists registered markers with descriptions).
+
+### Data-driven tests (`@pytest.mark.parametrize`) + file-based cases
+
+**What it does.** Runs the **same test body with different inputs**, and crucially each input becomes a **separate test** — its own pass/fail line in the report. This replaces both copy-pasted near-identical tests and the `for`-loop-inside-a-test anti-pattern.
+
+**Why the loop is wrong (fail-loud again).** A `for pid in [...]: assert client.get(...).status_code == 200` **stops at the first failure** — you never learn whether the later cases also broke, and the report shows one failed test instead of "1 of 4 failed". Parametrize gives independent, individually-named tests: case 2 failing doesn't hide a regression in case 4.
+
+**Shape.**
+```python
+@pytest.mark.parametrize("case", load_data("post_cases"), ids=lambda c: f"post{c['post_id']}-status{c['expected_status']}")
+def test_get_post_cases(self, api_client_jsonplaceholder, case):
+    ...
+```
+First arg is a comma-separated **string of names**; second is the **list of cases** (here, dicts). The names become extra function params that coexist with fixtures — pytest fills fixtures by name and parametrize values by name.
+
+**The file-based gotcha (the one that trips everyone).** Parametrize is evaluated at **collection time — before any fixture runs.** So you **cannot** feed it a fixture as the data source; the decorator needs a concrete list *right then*. The fix is to load the file with a **plain module-level function call**, not a fixture — hence `load_data("post_cases")` (a sibling of `load_schema` in `data_loader.py`), called as the test file is collected. Keeping the cases in `data/post_cases.json` separates *what to test* (data) from *how to test it* (code), and lets a non-coder add a case by editing JSON.
+
+**Readable IDs.** Without `ids=`, a dict case shows up as `test_get_post_cases[case0]` — useless when it fails. An `ids=` lambda makes each line self-describing (`[post11-status200]`), so a failing run *names* the broken case — the fail-loud principle applied to the report itself.
+
+**Mixing positive + negative cases.** `data/post_cases.json` includes a `404` case (`/posts/9999`). The body branches on `expected_status`: schema-validate + assert `userId` only on `200` (the `404` body is `{}`, which has no `userId`). One parametrized test then covers both the happy path and the not-found contract.
 
 ### Token authentication & the `auth` fixture chain (Restful-Booker)
 

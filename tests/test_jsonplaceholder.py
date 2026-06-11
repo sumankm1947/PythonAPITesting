@@ -10,11 +10,26 @@ import logging
 from jsonschema import validate
 
 from utils.api_client import APIClient
-from utils.data_loader import load_schema
+from utils.data_loader import load_schema, load_data
 
 logger = logging.getLogger(__name__)
 
 class TestPlaceholder:
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize(
+        "case",
+        load_data("post_cases"),
+        ids=lambda c: f"post{c['post_id']}-status{c['expected_status']}",
+    )
+    def test_get_post_cases(self, api_client_jsonplaceholder: APIClient, case: dict):
+        response = api_client_jsonplaceholder.get(f"/posts/{case['post_id']}")
+
+        assert response.status_code == case["expected_status"]
+
+        if case["expected_status"] == 200:
+            validate(response.json(), load_schema("post_jsonplaceholder"))
+            assert response.json()["userId"] == case["expected_user"]
 
     @pytest.mark.smoke
     @pytest.mark.regression
