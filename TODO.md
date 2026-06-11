@@ -16,5 +16,6 @@
 - [x] Restful-Booker auth fixtures in `conftest.py` — `restful_booker_token` (session-scoped login → token), `api_session_restfulbooker` (authenticated `APIClient`), `created_booking` + `booking_payload` (setup fixtures)
 - [x] `auth` marker registered in `pytest.ini`; `APIClient` extended to accept custom `headers`
 - [x] Create booking test + negative-auth test (DELETE without token → `403`)
-- [ ] Positive auth path — update/delete *with* token (note: Restful-Booker `DELETE` returns `201`)
-- [ ] Full create → update → delete chain
+- [x] Positive auth path — PATCH partial update + DELETE *with* token (note: Restful-Booker `DELETE` returns `201`)
+- [x] Full create → update → delete chain (create test + `test_patch_partial_update` + `test_delete_booking`, all via the auth fixtures)
+- [x] (Optional) Strengthen mutation tests with a follow-up `GET` — PATCH → re-read asserts the change persisted; DELETE → re-read asserts `404`
