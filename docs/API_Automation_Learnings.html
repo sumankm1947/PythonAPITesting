@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Automation — Learnings & Interview Guide</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --ink:#1f2937; --muted:#64748b;
+    --accent:#2563eb; --accent2:#0891b2; --good:#16a34a; --bad:#dc2626;
+    --warn:#d97706; --code-bg:#0f172a; --code-ink:#e2e8f0; --border:#e2e8f0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); line-height:1.65; margin:0; background:#f8fafc;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px 80px;}
+  header.hero{
+    background:linear-gradient(135deg,#1e3a8a,#0e7490); color:#fff;
+    padding:48px 24px; margin-bottom:8px;
+  }
+  header.hero .inner{max-width:920px; margin:0 auto;}
+  header.hero h1{margin:0 0 8px; font-size:2.1rem;}
+  header.hero p{margin:4px 0; opacity:.92;}
+  .tag{display:inline-block; background:rgba(255,255,255,.18); border-radius:999px;
+    padding:3px 12px; font-size:.8rem; margin:6px 6px 0 0;}
+  h2{margin-top:48px; padding-bottom:8px; border-bottom:2px solid var(--accent);
+    color:#0f172a; font-size:1.55rem;}
+  h3{margin-top:30px; color:#0f172a; font-size:1.2rem;}
+  h4{margin-top:22px; color:#334155; font-size:1.02rem;}
+  a{color:var(--accent); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  code{background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace; font-size:.88em;}
+  pre{background:var(--code-bg); color:var(--code-ink); padding:16px 18px;
+    border-radius:10px; overflow-x:auto; font-size:.85rem; line-height:1.5;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+  pre code{background:none; color:inherit; padding:0;}
+  .toc{background:#fff; border:1px solid var(--border); border-radius:12px;
+    padding:20px 28px; margin:24px 0; box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .toc h2{margin-top:0; border:none; font-size:1.2rem; color:var(--accent);}
+  .toc ol{margin:0; padding-left:20px; columns:2; column-gap:36px;}
+  .toc li{margin:5px 0; break-inside:avoid;}
+  .callout{border-left:4px solid var(--accent); background:#eff6ff;
+    padding:12px 18px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .callout.interview{border-color:var(--accent2); background:#ecfeff;}
+  .callout.interview strong{color:#0e7490;}
+  .callout.warn{border-color:var(--warn); background:#fffbeb;}
+  .callout.warn strong{color:var(--warn);}
+  .callout.good{border-color:var(--good); background:#f0fdf4;}
+  .pill{font-weight:600; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase;
+    padding:2px 8px; border-radius:6px; margin-right:8px;}
+  .pill.q{background:#cffafe; color:#0e7490;}
+  table{border-collapse:collapse; width:100%; margin:18px 0; font-size:.92rem;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:#f1f5f9;}
+  .status{font-weight:700;}
+  .s2{color:var(--good);} .s4{color:var(--bad);}
+  .filemap code{display:inline-block; min-width:230px;}
+  footer{color:var(--muted); font-size:.85rem; text-align:center; margin-top:60px;
+    padding-top:20px; border-top:1px solid var(--border);}
+  @media print{
+    header.hero{background:#1e3a8a !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    pre{background:#0f172a !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    .toc ol{columns:2;}
+    h2{break-after:avoid;}
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <h1>API Test Automation — Learnings &amp; Interview Guide</h1>
+    <p>A pytest + <code>requests</code> REST API automation framework — concepts, patterns, and the "why" behind each decision.</p>
+    <p style="opacity:.8; font-size:.9rem;">Mini-project study notes · prepared for SDET interview review</p>
+    <div>
+      <span class="tag">pytest</span><span class="tag">requests</span>
+      <span class="tag">JSON Schema</span><span class="tag">fixtures</span>
+      <span class="tag">markers</span><span class="tag">parametrize</span>
+      <span class="tag">token auth</span><span class="tag">CI/CD</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#overview">Project overview &amp; architecture</a></li>
+    <li><a href="#failloud">Guiding principle: fail loud</a></li>
+    <li><a href="#client">The <code>APIClient</code> wrapper</a></li>
+    <li><a href="#fixtures">Fixtures &amp; <code>conftest.py</code></a></li>
+    <li><a href="#schema">JSON Schema validation</a></li>
+    <li><a href="#encoding">File encoding (<code>utf-8</code>)</a></li>
+    <li><a href="#paths">Robust path handling</a></li>
+    <li><a href="#markers">Pytest markers</a></li>
+    <li><a href="#parametrize">Data-driven tests (parametrize)</a></li>
+    <li><a href="#auth">Token auth &amp; fixture chain</a></li>
+    <li><a href="#shapes">Response-shape gotcha</a></li>
+    <li><a href="#crud">CRUD chain &amp; "trust but verify"</a></li>
+    <li><a href="#config">pytest.ini &amp; CI/CD</a></li>
+    <li><a href="#qa">Rapid-fire interview Q&amp;A</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="overview">1 · Project overview &amp; architecture</h2>
+<p>A <strong>pytest-based REST API automation framework</strong> in Python using the <code>requests</code> library. It tests two live APIs:</p>
+<ul>
+  <li><strong>JSONPlaceholder</strong> (<code>https://jsonplaceholder.typicode.com</code>) — a public fake REST API, no auth. Used for CRUD + schema + data-driven tests.</li>
+  <li><strong>Restful-Booker</strong> (<code>https://restful-booker.herokuapp.com</code>) — a token-authenticated booking API. Used for the auth tests, because it actually <em>enforces</em> the token (rejects unauthenticated mutations).</li>
+</ul>
+
+<h4>Request flow</h4>
+<pre><code>Test  →  fixture (APIClient)  →  requests.Session  →  external API  →  assertions
+                                                                       (status + JSON body + schema)</code></pre>
+
+<h4>File map</h4>
+<table class="filemap">
+<tr><th>File</th><th>Responsibility</th></tr>
+<tr><td><code>utils/api_client.py</code></td><td><code>APIClient</code> — thin wrapper over <code>requests.Session</code>; base-URL joining, per-method logging, optional custom headers (for auth).</td></tr>
+<tr><td><code>utils/data_loader.py</code></td><td><code>load_schema(name)</code> + <code>load_data(name)</code> — read JSON from <code>data/</code>, path-anchored to project root.</td></tr>
+<tr><td><code>conftest.py</code></td><td>Shared fixtures — clients, auth-token chain, setup data.</td></tr>
+<tr><td><code>config/config.py</code></td><td>Loads <code>.env</code> via <code>python-dotenv</code>; exposes the base-URL endpoints.</td></tr>
+<tr><td><code>tests/test_jsonplaceholder.py</code></td><td>CRUD + schema validation + parametrized data-driven test.</td></tr>
+<tr><td><code>tests/test_restfulbooker.py</code></td><td>Token-auth CRUD chain + negative (no-token → 403) test.</td></tr>
+<tr><td><code>data/schemas/</code>, <code>data/*.json</code></td><td>JSON Schemas + test-data/payload files.</td></tr>
+<tr><td><code>pytest.ini</code></td><td>Global options + marker registration.</td></tr>
+<tr><td><code>.github/workflows/pytest.yml</code></td><td>CI — runs the suite on push/PR, uploads the HTML report.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="failloud">2 · Guiding principle — tests must fail <em>loudly</em></h2>
+<p>The single rule running through every decision below: <strong>a test should fail loudly when something is wrong, never pass quietly.</strong> The worst outcome in automation is a <em>green test that verified nothing</em> — it gives false confidence and hides real regressions.</p>
+<p>Every design choice in this project serves that principle: raising on a missing schema, <code>--strict-markers</code>, explicit <code>encoding</code>, per-case test IDs, the negative auth test. Each one favours an <em>obvious, immediate failure</em> over a <em>silent, misleading pass</em>.</p>
+<div class="callout interview"><span class="pill q">Interview</span><strong>"What's the worst kind of test?"</strong> → A test that passes without actually checking anything (no assertion, an empty schema that matches everything, a mistyped marker that's silently skipped). Always design so mistakes surface as failures, not as false greens.</div>
+
+<!-- ============================================================ -->
+<h2 id="client">3 · The <code>APIClient</code> wrapper</h2>
+<p>Rather than scatter raw <code>requests.get(...)</code> calls across tests, a thin wrapper centralises the base URL, a shared session, logging, and headers.</p>
+<pre><code>class APIClient:
+    def __init__(self, base_url: str, headers: dict = None):
+        if headers is None:                       # NOT headers={} — see footgun below
+            headers = {"Content-Type": "application/json; charset=UTF-8"}
+        self.base_url = base_url
+        self.session = requests.Session()
+        self.session.headers.update(headers)
+
+    def get(self, endpoint, headers=None):
+        url = f"{self.base_url}{endpoint}"
+        logger.info(f"GET {url}")
+        response = self.session.get(url, headers=headers)
+        logger.info(f"Response {response.status_code}: {response.text}")
+        return response
+    # post / put / patch / delete follow the same shape</code></pre>
+
+<h4>Why a <code>Session</code> (not bare <code>requests.get</code>)?</h4>
+<ul>
+  <li><strong>Connection reuse</strong> — keeps a TCP connection alive across calls (faster).</li>
+  <li><strong>Header persistence</strong> — set auth/content-type once, applied to every request.</li>
+  <li><strong>One place to log</strong> — every request/response is logged uniformly.</li>
+</ul>
+
+<div class="callout warn"><span class="pill" style="background:#fde68a;color:#92400e;">Footgun</span><strong>Mutable default argument.</strong> Writing <code>def __init__(self, headers={...})</code> is a classic Python bug: the default dict is created <em>once</em> and <em>shared</em> across all calls — mutating it leaks state between instances. Fix: default to <code>None</code> and assign a fresh dict inside.</div>
+
+<!-- ============================================================ -->
+<h2 id="fixtures">4 · Fixtures &amp; <code>conftest.py</code></h2>
+<p>A <strong>fixture</strong> is reusable setup/teardown that pytest <em>injects</em> into a test by matching the parameter name. <code>conftest.py</code> holds fixtures shared across all test files (no import needed — pytest auto-discovers it).</p>
+
+<pre><code>@pytest.fixture
+def api_client_jsonplaceholder():
+    api_client = APIClient(base_url=API_ENDPOINT_JSONPLACEHOLDER)
+    yield api_client                 # &lt;-- test runs here
+    api_client.session.close()       # &lt;-- teardown after the test</code></pre>
+
+<p>The <code>yield</code> splits setup (before) from teardown (after) — the session is always closed, even if the test fails.</p>
+
+<h4>Fixture scope — the key decision</h4>
+<table>
+<tr><th>Scope</th><th>Created…</th><th>Use when</th></tr>
+<tr><td><code>function</code> (default)</td><td>once per test</td><td>state must be fresh/isolated per test (e.g. a booking to delete)</td></tr>
+<tr><td><code>session</code></td><td>once per whole run</td><td>expensive + safe to share read-only (e.g. an auth token)</td></tr>
+</table>
+
+<div class="callout"><strong>Fresh instance per test method.</strong> pytest creates a <em>new instance of the test class for every test method</em>. So <code>self.x = ...</code> set in one test is gone in the next — sharing state via class attributes silently fails. The correct way to pass data between tests is a <strong>fixture</strong> (e.g. <code>created_booking</code>), which also removes hidden ordering dependencies.</div>
+
+<!-- ============================================================ -->
+<h2 id="schema">5 · JSON Schema validation</h2>
+<h4>The problem it solves</h4>
+<p>Asserting a single value (<code>response.json()["id"] == 1</code>) only confirms <em>this one record</em> looks right. It misses a whole class of <strong>contract regressions</strong>: a field renamed (<code>userId</code> → <code>user_id</code>), a type changing (<code>id</code> becoming the string <code>"1"</code>), a field disappearing, or an unexpected <code>null</code>. Checking every field's type by hand on every test is verbose and brittle.</p>
+
+<h4>The schema (the contract, written as JSON)</h4>
+<pre><code>{
+  "type": "object",
+  "properties": {
+    "userId": { "type": "integer" },
+    "id":     { "type": "integer" },
+    "title":  { "type": "string" },
+    "body":   { "type": "string" }
+  },
+  "required": ["userId", "id", "title", "body"]
+}</code></pre>
+
+<h4>How it's used</h4>
+<pre><code>from jsonschema import validate
+from utils.data_loader import load_schema
+
+response = api_client_jsonplaceholder.get("/posts/1")
+assert response.status_code == 200                    # status FIRST
+validate(response.json(), load_schema("post_jsonplaceholder"))   # then structure
+assert response.json()["userId"] == 1                 # then business value</code></pre>
+
+<h4>Example response being validated</h4>
+<pre><code>GET https://jsonplaceholder.typicode.com/posts/1
+Response 200:
+{
+  "userId": 1,
+  "id": 1,
+  "title": "sunt aut facere repellat provident occaecati...",
+  "body":  "quia et suscipit\nsuscipit recusandae..."
+}</code></pre>
+<p><code>validate()</code> returns <strong>silently</strong> on a match and raises <code>ValidationError</code> (failing the test, e.g. <em>"'userId' is a required property"</em>) on a mismatch.</p>
+
+<div class="callout good"><strong>Order matters.</strong> Validate <em>after</em> the status assertion — so a <code>404</code> fails clearly as "wrong status", not as a confusing schema error about the error body.</div>
+
+<h4>Key keywords</h4>
+<table>
+<tr><th>Keyword</th><th>Meaning</th></tr>
+<tr><td><code>type</code></td><td><code>string</code>/<code>integer</code>/<code>number</code>/<code>boolean</code>/<code>object</code>/<code>array</code>/<code>null</code></td></tr>
+<tr><td><code>properties</code></td><td>declares each field's sub-schema</td></tr>
+<tr><td><code>required</code></td><td>list of fields that must be present</td></tr>
+<tr><td><code>items</code></td><td>schema each element of an <strong>array</strong> must satisfy (for list endpoints like <code>GET /posts</code>)</td></tr>
+<tr><td><code>additionalProperties:false</code></td><td>strict — reject any undeclared field (more rigorous, more brittle)</td></tr>
+</table>
+<p><strong>Object vs. array:</strong> <code>/posts/1</code> returns an object → validate against an <code>object</code> schema. <code>/posts</code> returns a list → use <code>{"type":"array","items":{ &lt;object schema&gt; }}</code> so every element is checked.</p>
+
+<div class="callout interview"><span class="pill q">Interview</span><strong>"Value assertions vs schema validation?"</strong> → Use <em>both</em>. Schema guards the <strong>contract/structure</strong> (types, required fields); value assertions confirm <strong>business logic</strong> (the right data). Together this is <strong>contract testing</strong>.</div>
+
+<!-- ============================================================ -->
+<h2 id="encoding">6 · File encoding — why <code>encoding="utf-8"</code> is explicit</h2>
+<p>A file on disk is just <strong>bytes</strong>; an <em>encoding</em> is the rulebook mapping characters ↔ bytes. The same character maps to different bytes under different encodings (<code>é</code> is two bytes in UTF-8, one in Windows-1252).</p>
+<p><code>open()</code> <strong>without</strong> <code>encoding=</code> uses a <strong>platform-dependent default</strong>: Windows often defaults to <code>cp1252</code>, while Linux and CI default to UTF-8. <em>That asymmetry is the bug</em> — code behaves differently across environments, producing the classic "works on my machine / passes locally, fails in CI" trap, or <code>UnicodeDecodeError</code> the moment a smart-quote, em-dash, accented name, or emoji appears in a data file.</p>
+<pre><code>with open(path, "r", encoding="utf-8") as f:   # always explicit
+    return json.load(f)</code></pre>
+<div class="callout"><strong>Rule:</strong> always pass <code>encoding="utf-8"</code> when opening text files. UTF-8 represents all Unicode, is ASCII-backward-compatible, and is the JSON spec default. (Related but separate: <code>ensure_ascii=False</code> when <em>writing</em> JSON controls whether non-ASCII is escaped to <code>\uXXXX</code> — not needed for reading.)</div>
+
+<!-- ============================================================ -->
+<h2 id="paths">7 · Robust path handling (<code>data_loader.py</code>)</h2>
+<p>Loading by relative path (<code>open("data/schemas/x.json")</code>) resolves against the <strong>current working directory</strong> — wherever pytest happened to be launched — so it breaks when run from a subfolder or in CI. The fix is to anchor to the file's own location:</p>
+<pre><code>from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # walk up from utils/ to root
+DATA_DIR     = PROJECT_ROOT / "data"
+SCHEMA_DIR   = DATA_DIR / "schemas"
+
+def load_schema(name: str) -> dict:
+    with open(SCHEMA_DIR / f"{name}.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def load_data(name: str):                                # used by parametrize
+    with open(DATA_DIR / f"{name}.json", "r", encoding="utf-8") as f:
+        return json.load(f)</code></pre>
+<ul>
+  <li><code>Path(__file__).resolve()</code> → absolute path to the module itself</li>
+  <li><code>.parent.parent</code> → walk up from <code>utils/</code> to the project root</li>
+</ul>
+<div class="callout warn"><strong>Fail-loud detail.</strong> An earlier version returned an empty <code>{}</code> schema for unknown names. An empty schema <em>validates anything</em>, so a typo'd schema name would <strong>silently pass</strong>. Building the path from the name instead means a missing file raises <code>FileNotFoundError</code> — a loud, correct failure.</div>
+
+<!-- ============================================================ -->
+<h2 id="markers">8 · Pytest markers (<code>smoke</code>, <code>regression</code>, <code>auth</code>)</h2>
+<p>A <strong>marker</strong> is a label on a test (<code>@pytest.mark.smoke</code>). It carries no behaviour by itself — it just <em>tags</em> the test so groups can be selected or skipped.</p>
+<pre><code>@pytest.mark.smoke
+@pytest.mark.regression
+def test_get_post(self, api_client_jsonplaceholder):
+    ...</code></pre>
+
+<h4>Why — run subsets at different cadences</h4>
+<ul>
+  <li><strong>smoke</strong> = tiny, fast critical-path subset → run on every commit/PR for quick feedback.</li>
+  <li><strong>regression</strong> = the full, slower suite → run nightly / pre-release.</li>
+</ul>
+<p>A test can carry multiple markers; smoke tests are usually also <code>regression</code> (smoke is a subset).</p>
+
+<h4>Selecting</h4>
+<pre><code>pytest -m smoke
+pytest -m "smoke or regression"
+pytest -m "regression and not smoke"</code></pre>
+
+<h4>The division of labour</h4>
+<table>
+<tr><th>Piece</th><th>Job</th></tr>
+<tr><td><code>@pytest.mark.smoke</code> (decorator)</td><td><strong>Tags</strong> the test</td></tr>
+<tr><td><code>pytest -m smoke</code> (CLI flag)</td><td><strong>Selects</strong> tagged tests</td></tr>
+<tr><td><code>pytest.ini</code> <code>markers =</code></td><td><strong>Declares</strong> the name is legit + documents it</td></tr>
+</table>
+<div class="callout warn"><strong><code>--strict-markers</code> (set in pytest.ini)</strong> upgrades an unregistered/mistyped marker from a silent warning to a hard <strong>error at collection time</strong>. Without it, a typo like <code>@pytest.mark.smoek</code> is silently accepted as a brand-new marker, so <code>pytest -m smoke</code> quietly <em>skips</em> that test — a hidden coverage hole. Fail-loud, applied to markers.</div>
+
+<!-- ============================================================ -->
+<h2 id="parametrize">9 · Data-driven tests (<code>@pytest.mark.parametrize</code>)</h2>
+<p>Runs the <strong>same test body with different inputs</strong>, and crucially each input becomes a <strong>separate test</strong> — its own pass/fail line.</p>
+
+<pre><code>@pytest.mark.parametrize(
+    "case",                                    # 1. param name injected into the test
+    load_data("post_cases"),                   # 2. list of cases (resolved at collection time)
+    ids=lambda c: f"post{c['post_id']}-status{c['expected_status']}",  # 3. readable labels
+)
+def test_get_post_cases(self, api_client_jsonplaceholder, case):
+    response = api_client_jsonplaceholder.get(f"/posts/{case['post_id']}")
+    assert response.status_code == case["expected_status"]
+    if case["expected_status"] == 200:
+        validate(response.json(), load_schema("post_jsonplaceholder"))
+        assert response.json()["userId"] == case["expected_user"]</code></pre>
+
+<h4>The data file (<code>data/post_cases.json</code>)</h4>
+<pre><code>[
+  { "post_id": 1,    "expected_status": 200, "expected_user": 1 },
+  { "post_id": 2,    "expected_status": 200, "expected_user": 1 },
+  { "post_id": 11,   "expected_status": 200, "expected_user": 2 },
+  { "post_id": 9999, "expected_status": 404, "expected_user": null }
+]</code></pre>
+
+<h4>Resulting test run — 4 independent tests</h4>
+<pre><code>test_get_post_cases[post1-status200]      PASSED
+test_get_post_cases[post2-status200]      PASSED
+test_get_post_cases[post11-status200]     PASSED
+test_get_post_cases[post9999-status404]   PASSED</code></pre>
+
+<div class="callout warn"><strong>The collection-time gotcha.</strong> parametrize is evaluated <em>before any fixture runs</em> — so the data source <strong>cannot</strong> be a fixture; it must be a plain function call (<code>load_data(...)</code>). The decorator needs a concrete list right then.</div>
+<div class="callout"><strong>Why not a <code>for</code> loop inside one test?</strong> A loop <em>stops at the first failure</em> — you never learn whether later cases also broke, and the report shows one failed test instead of "1 of 4 failed." parametrize gives independent, individually-named tests. The <code>ids=</code> lambda makes a failure <em>name the broken case</em> (<code>post9999-status404</code>) instead of an opaque <code>[case3]</code>.</div>
+
+<!-- ============================================================ -->
+<h2 id="auth">10 · Token authentication &amp; the <code>auth</code> fixture chain</h2>
+<p>Token auth is a two-step dance: <strong>(1)</strong> <code>POST /auth</code> with credentials → server returns a <code>token</code>; <strong>(2)</strong> send that token on every <em>protected</em> request. Restful-Booker expects it as a <code>Cookie: token=&lt;token&gt;</code> header (other APIs use <code>Authorization: Bearer &lt;token&gt;</code> — same idea, different header).</p>
+
+<h4>Step 1 — log in once (session-scoped)</h4>
+<pre><code>@pytest.fixture(scope="session")
+def restful_booker_token():
+    client = APIClient(base_url=API_ENDPOINT_RESTFULBOOKER)
+    response = client.post("/auth", {"username": "admin", "password": "password123"})
+    return response.json()["token"]</code></pre>
+<pre><code>POST https://restful-booker.herokuapp.com/auth | body: {'username':'admin','password':'password123'}
+Response 200: {"token":"6cf5ed36614a18c"}</code></pre>
+<p><strong>Why session scope?</strong> The token stays valid for the whole run — logging in once is faster, and it's read-only shared state (safe to share). Function scope would re-login per test for no benefit.</p>
+
+<h4>Step 2 — build an authenticated client (two-layer design)</h4>
+<pre><code>@pytest.fixture(scope="session")
+def api_session_restfulbooker(restful_booker_token):
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Cookie": f"token={restful_booker_token}",   # token baked into every request
+    }
+    client = APIClient(base_url=API_ENDPOINT_RESTFULBOOKER, headers=headers)
+    yield client
+    client.session.close()</code></pre>
+<div class="callout"><strong>Separation of concerns.</strong> <code>restful_booker_token</code> <em>gets credentials</em> (returns the raw token); <code>api_session_restfulbooker</code> <em>builds an authed client</em> (depends on the token). Tests just call methods — the token attaches itself. This mirrors real frameworks and keeps the raw token reusable for negative tests.</div>
+
+<h4>The negative test — the most valuable auth assertion</h4>
+<pre><code>@pytest.mark.auth
+def test_delete_booking_withouttoken(self, created_booking):
+    client = APIClient(base_url=API_ENDPOINT_RESTFULBOOKER)   # NO token
+    response = client.delete(f"/booking/{created_booking}")
+    assert response.status_code == 403</code></pre>
+<pre><code>DELETE https://restful-booker.herokuapp.com/booking/2962
+Response <span class="s4">403</span>: Forbidden</code></pre>
+<div class="callout good"><strong>This is the point.</strong> A <code>DELETE</code> with no token → <code>403</code> proves auth is actually <em>enforced</em>, not just that login returns a string. (ReqRes was rejected as a target precisely because its token isn't enforced on anything — you could never write this test.) Pair it with the positive twin (<code>test_delete_booking</code>, same call <em>with</em> token → success) for the with/without contrast.</div>
+
+<!-- ============================================================ -->
+<h2 id="shapes">11 · Response-shape gotcha — create vs. update nest differently</h2>
+<p>The same API can wrap responses differently per endpoint. Restful-Booker is a perfect example:</p>
+
+<h4>Create — wrapped under <code>"booking"</code></h4>
+<pre><code>POST /booking
+Response 200:
+{
+  "bookingid": 2952,
+  "booking": {
+    "firstname": "Suman",
+    "lastname":  "Mandal",
+    "totalprice": 111,
+    "depositpaid": true,
+    "bookingdates": { "checkin": "2018-01-01", "checkout": "2019-01-01" }
+  }
+}</code></pre>
+<pre><code>assert response.json()["booking"]["firstname"] == "Suman"   # nested</code></pre>
+
+<h4>Update (PATCH) — returned at the top level</h4>
+<pre><code>PATCH /booking/2956 | body: {'firstname':'YoYo','lastname':'Mandal'}
+Response 200:
+{
+  "firstname": "YoYo",
+  "lastname":  "Mandal",
+  "totalprice": 111,
+  "depositpaid": true,
+  "bookingdates": { "checkin": "2018-01-01", "checkout": "2019-01-01" }
+}</code></pre>
+<pre><code>assert response.json()["firstname"] == "YoYo"               # NOT nested</code></pre>
+
+<div class="callout warn"><strong>Lesson.</strong> Never assume one response shape across endpoints. Always read the actual body — the create result nests under <code>["booking"]</code>, but PATCH returns the booking object directly. A wrong path here is a <code>KeyError</code> at runtime.</div>
+
+<!-- ============================================================ -->
+<h2 id="crud">12 · The full CRUD chain &amp; "trust but verify"</h2>
+<p>create → update → delete, each test self-contained via the <code>created_booking</code> fixture (no cross-test ordering).</p>
+
+<table>
+<tr><th>Operation</th><th>Endpoint</th><th>Status</th><th>Notes</th></tr>
+<tr><td>Create</td><td><code>POST /booking</code></td><td class="status s2">200</td><td>no token needed; result nested under <code>booking</code></td></tr>
+<tr><td>Update</td><td><code>PATCH /booking/{id}</code></td><td class="status s2">200</td><td>token required; result at top level</td></tr>
+<tr><td>Delete (with token)</td><td><code>DELETE /booking/{id}</code></td><td class="status s2">201</td><td>token required; returns <em>201 Created</em> (quirk!)</td></tr>
+<tr><td>Delete (no token)</td><td><code>DELETE /booking/{id}</code></td><td class="status s4">403</td><td>negative test — proves enforcement</td></tr>
+</table>
+
+<h4>"Trust but verify" — confirm the side effect with an independent read</h4>
+<p>A mutation test is strongest when a <em>separate</em> read confirms the change actually persisted — don't trust the mutation endpoint's own echo.</p>
+<pre><code># after PATCH → re-read and assert the new value stuck
+PATCH /booking/1668   Response 200: {"firstname":"YoYo",...}
+GET   /booking/1668   Response <span class="s2">200</span>: {"firstname":"YoYo",...}   ✓ persisted
+
+# after DELETE → re-read and assert it's gone
+DELETE /booking/1687  Response <span class="s2">201</span>: Created
+GET    /booking/1687  Response <span class="s4">404</span>: Not Found              ✓ deleted</code></pre>
+
+<div class="callout"><strong>Setup fixture vs. test under test.</strong> <code>created_booking</code> and the create <em>test</em> both call <code>POST /booking</code> — but that's <em>not</em> duplication to remove. The test's job is to <strong>verify</strong> creation (it asserts); the fixture's job is to <strong>arrange</strong> a precondition for delete/update (it doesn't assert). What <em>is</em> worth de-duplicating is the request <em>data</em> — hence the shared <code>data/booking_payload.json</code>. General rule: test code tolerates more duplication than production code, but centralise shared <em>data</em>.</div>
+
+<!-- ============================================================ -->
+<h2 id="config">13 · <code>pytest.ini</code> &amp; CI/CD</h2>
+<h4>pytest.ini — applied to every run automatically</h4>
+<pre><code>[pytest]
+addopts = -vs -rf --strict-markers --html-report=./report --title='PYTEST REPORT'
+markers =
+    smoke: critical-path quick subset
+    regression: full suite
+    auth: authentication tests</code></pre>
+<table>
+<tr><th>Flag</th><th>Effect</th></tr>
+<tr><td><code>-v</code></td><td>verbose — show each test name</td></tr>
+<tr><td><code>-s</code></td><td>don't capture stdout — show logs live</td></tr>
+<tr><td><code>-rf</code></td><td>summary of failed tests at the end</td></tr>
+<tr><td><code>--strict-markers</code></td><td>unregistered marker → hard error</td></tr>
+<tr><td><code>--html-report</code></td><td>generate an HTML report to <code>./report/</code></td></tr>
+</table>
+
+<h4>CI — <code>.github/workflows/pytest.yml</code></h4>
+<p>On every push/PR to <code>main</code>: set up Python 3.10 → <code>pip install -r requirements.txt</code> → <code>pytest</code> → upload <code>report/</code> as a build artifact. This is where the UTF-8 / path-anchoring discipline pays off — CI runs on Linux, so any Windows-only assumption would surface here.</p>
+
+<!-- ============================================================ -->
+<h2 id="qa">14 · Rapid-fire interview Q&amp;A</h2>
+
+<p><span class="pill q">Q</span><strong>Why wrap <code>requests</code> in an <code>APIClient</code> class instead of calling it directly?</strong><br>
+Centralises base URL, shared session (connection reuse + persistent headers), and logging. One place to change, consistent behaviour, DRY tests.</p>
+
+<p><span class="pill q">Q</span><strong>function vs session fixture scope?</strong><br>
+function = fresh per test (isolation — e.g. a booking to delete). session = once per run (expensive + safe to share read-only — e.g. an auth token).</p>
+
+<p><span class="pill q">Q</span><strong>How do you share data between tests?</strong><br>
+A fixture (e.g. <code>created_booking</code>), <em>not</em> class attributes — pytest makes a fresh class instance per test, so <code>self.x</code> doesn't carry over.</p>
+
+<p><span class="pill q">Q</span><strong>Value assertion vs schema validation?</strong><br>
+Both. Schema checks structure/types/required fields (contract); value assertions check business logic (right data). Together = contract testing.</p>
+
+<p><span class="pill q">Q</span><strong>Why <code>encoding="utf-8"</code> everywhere?</strong><br>
+<code>open()</code>'s default is platform-dependent (Windows cp1252 vs Linux UTF-8). Being explicit avoids "passes locally, fails in CI" and Unicode errors on special characters.</p>
+
+<p><span class="pill q">Q</span><strong>What does <code>--strict-markers</code> do and why?</strong><br>
+Turns an unregistered/mistyped marker into a collection error instead of a silent warning — so a typo can't quietly skip a test.</p>
+
+<p><span class="pill q">Q</span><strong>Why can't parametrize data come from a fixture?</strong><br>
+parametrize is resolved at collection time, before fixtures run — so it needs a plain function call returning a concrete list.</p>
+
+<p><span class="pill q">Q</span><strong>Most valuable auth test?</strong><br>
+The negative one: a protected call <em>without</em> a token must return 403 — it proves auth is enforced. Pair with a positive (with-token) test for contrast.</p>
+
+<p><span class="pill q">Q</span><strong>How do you handle token auth across many tests?</strong><br>
+Two-layer fixtures: one logs in once (session-scoped) and returns the token; another builds an authenticated client with the token in its headers. Tests just use the client.</p>
+
+<p><span class="pill q">Q</span><strong>What's "trust but verify" in API testing?</strong><br>
+After a mutation, do an independent read to confirm the side effect actually persisted (PATCH → GET shows new value; DELETE → GET returns 404) — don't trust the mutation's own echoed response.</p>
+
+<p><span class="pill q">Q</span><strong>Tests are flaky against a live third-party API — what do you do?</strong><br>
+Distinguish a real failure from environment flakiness (re-run; here Restful-Booker's free Heroku instance intermittently 5xx'd). Long-term: retry on transient network errors, or mock/stub the external service for deterministic CI.</p>
+
+<footer>
+  API Test Automation — personal study notes · pytest + requests framework<br>
+  Generated for interview review. Tip: open in a browser and <strong>Ctrl/Cmd-P → Save as PDF</strong> for a portable copy.
+</footer>
+
+</div>
+</body>
+</html>
